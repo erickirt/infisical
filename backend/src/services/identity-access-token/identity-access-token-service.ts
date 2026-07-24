@@ -473,7 +473,11 @@ export const identityAccessTokenServiceFactory = ({
 
     if (ipAddress) {
       const { accessTokenTrustedIps: trustedIps } = await withCache<TTrustedIpsCachePayload>({
-        keyStore,
+        // A Redis read replica can lag behind the primary's DEL on invalidation and serve a stale allowlist
+        keyStore: {
+          getItem: (key, prefix) => keyStore.getItemPrimary(key, prefix),
+          setItemWithExpiry: keyStore.setItemWithExpiry
+        },
         key: KeyStorePrefixes.IdentityTrustedIps(token.identityId, source.authMethod),
         ttlSeconds: KeyStoreTtls.IdentityTrustedIpsInSeconds,
         fetcher: async () => {
